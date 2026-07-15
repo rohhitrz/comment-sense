@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { extractVideoId, YouTubeError } from "@/lib/youtube";
 import { analyzeVideo } from "@/lib/analyzeVideo";
+import { generateCrossVideoInsights } from "@/lib/classify";
 import type { AnalyzeResult, CompareResult, CrossVideoInsights, SkippedVideo } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -18,15 +19,13 @@ const INSUFFICIENT_DATA_INSIGHTS: CrossVideoInsights = {
     "Not enough videos were successfully analyzed to detect cross-video patterns. Try again with at least two videos that have comments enabled.",
 };
 
-// TODO(step 2): replace with a real cross-video synthesis LLM call.
-async function generateCrossVideoInsightsStub(_videos: AnalyzeResult[]): Promise<CrossVideoInsights> {
-  return {
-    recurringComplaints: [],
-    recurringRequests: [],
-    trend: null,
-    recommendation: "Cross-video synthesis not yet implemented.",
-  };
-}
+const SYNTHESIS_FAILED_INSIGHTS: CrossVideoInsights = {
+  recurringComplaints: [],
+  recurringRequests: [],
+  trend: null,
+  recommendation:
+    "Cross-video pattern detection failed for this batch. Each video's individual analysis below is still accurate.",
+};
 
 export async function POST(request: Request) {
   let videoUrls: unknown;
@@ -95,8 +94,17 @@ export async function POST(request: Request) {
     }
   }
 
-  const crossVideoInsights =
-    videos.length >= 2 ? await generateCrossVideoInsightsStub(videos) : INSUFFICIENT_DATA_INSIGHTS;
+  let crossVideoInsights: CrossVideoInsights;
+  if (videos.length >= 2) {
+    try {
+      crossVideoInsights = await generateCrossVideoInsights(videos);
+    } catch (err) {
+      console.error("Cross-video synthesis failed:", err);
+      crossVideoInsights = SYNTHESIS_FAILED_INSIGHTS;
+    }
+  } else {
+    crossVideoInsights = INSUFFICIENT_DATA_INSIGHTS;
+  }
 
   const response: CompareResult = { videos, skipped, crossVideoInsights };
   return NextResponse.json(response);

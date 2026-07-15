@@ -1,5 +1,14 @@
 import OpenAI from "openai";
-import type { ClassifiedComment, ClusterComment, RawComment, Sentiment, SentimentBreakdown, Theme } from "./types";
+import type {
+  AnalyzeResult,
+  ClassifiedComment,
+  ClusterComment,
+  CrossVideoInsights,
+  RawComment,
+  Sentiment,
+  SentimentBreakdown,
+  Theme,
+} from "./types";
 
 const MODEL = "gpt-4o-mini";
 const BATCH_SIZE = 25;
@@ -214,4 +223,72 @@ export async function generateTopQuestions(
 
   const parsed = JSON.parse(content) as QuestionsResponse;
   return parsed.questions.slice(0, 5);
+}
+
+interface CrossVideoInsightsResponse {
+  recurringComplaints?: { pattern: string; videoTitles: string[] }[];
+  recurringRequests?: { pattern: string; videoTitles: string[] }[];
+  trend?: string | null;
+  recommendation?: string;
+}
+
+/**
+ * Synthesizes patterns that repeat across multiple already-analyzed videos (same creator).
+ * `videos` is expected in the order the creator pasted the URLs in, used as a recency proxy
+ * for trend detection (oldest to newest as listed).
+ */
+export async function generateCrossVideoInsights(videos: AnalyzeResult[]): Promise<CrossVideoInsights> {
+  const openai = getClient();
+
+  const payload = videos.map((v, i) => ({
+    order: i + 1,
+    title: v.video.title,
+    themes: v.clusters.map((c) => ({
+      theme: c.theme,
+      count: c.count,
+      examples: c.topComments.slice(0, 3).map((tc) => tc.text),
+    })),
+  }));
+
+  const completion = await openai.chat.completions.create({
+    model: MODEL,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content:
+          "You analyze comment patterns across multiple YouTube videos from the same creator to find what repeats " +
+          "across videos, not what's unique to one. You receive each video's title, its position in the sequence " +
+          "the creator listed them in (`order` ascending = oldest to newest as pasted), and per-theme comment " +
+          "counts with a few example comments per theme. Identify: " +
+          "(1) recurringComplaints: complaints or confusions that show up in at least 2 of the videos, " +
+          "(2) recurringRequests: requests that show up in at least 2 of the videos, " +
+          "(3) trend: one notable trend across the sequence (e.g. a theme becoming more common in later videos), " +
+          "or null if there isn't a clear one, " +
+          "(4) recommendation: one clear, actionable recommendation (2-3 sentences) grounded only in patterns you " +
+          "actually found, written like real advice to the creator, not generic filler. " +
+          "Do not fabricate a pattern that isn't backed by at least 2 videos — return empty arrays if nothing recurs. " +
+          'Respond with strict JSON only: { "recurringComplaints": [{ "pattern": string, "videoTitles": string[] }], ' +
+          '"recurringRequests": [{ "pattern": string, "videoTitles": string[] }], "trend": string | null, ' +
+          '"recommendation": string }.',
+      },
+      {
+        role: "user",
+        content: JSON.stringify({ videos: payload }),
+      },
+    ],
+  });
+
+  const content = completion.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error("Empty response from cross-video synthesis call.");
+  }
+
+  const parsed = JSON.parse(content) as CrossVideoInsightsResponse;
+  return {
+    recurringComplaints: parsed.recurringComplaints ?? [],
+    recurringRequests: parsed.recurringRequests ?? [],
+    trend: parsed.trend ?? null,
+    recommendation: parsed.recommendation ?? "No recommendation was generated.",
+  };
 }
