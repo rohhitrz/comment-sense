@@ -55,3 +55,26 @@ export interface AnalyzeResult {
 export interface AnalyzeError {
   error: string;
 }
+
+export interface SkippedVideo {
+  videoId: string | null;
+  reason: string;
+}
+
+export interface RecurringPattern {
+  pattern: string;
+  videoTitles: string[];
+}
+
+export interface CrossVideoInsights {
+  recurringComplaints: RecurringPattern[];
+  recurringRequests: RecurringPattern[];
+  trend: string | null;
+  recommendation: string;
+}
+
+export interface CompareResult {
+  videos: AnalyzeResult[];
+  skipped: SkippedVideo[];
+  crossVideoInsights: CrossVideoInsights;
+}
