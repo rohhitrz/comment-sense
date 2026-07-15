@@ -4,13 +4,13 @@ AI comment intelligence for YouTube creators. Paste a video URL, get an instant 
 
 ## What it does
 
-A creator pastes a YouTube video URL. CommentSense:
+A creator pastes a YouTube video URL and picks a scan depth. CommentSense:
 
-1. Fetches the top ~150 comments for that video via the YouTube Data API v3.
-2. Classifies every comment's sentiment (positive/neutral/negative) and theme (praise/question/request/complaint/other) using `gpt-4o-mini`, in batched parallel calls.
-3. Renders a dashboard: a sentiment breakdown chart, comments grouped into themed clusters, the top 5 questions your audience is asking, and one AI-drafted suggested reply per cluster with a one-click copy button.
+1. Fetches the top comments for that video via the YouTube Data API v3 — **Quick scan** (up to 150, the default) or **Deep scan** (up to 500), ordered by relevance.
+2. Classifies every comment's sentiment (positive/neutral/negative) and theme (praise/question/request/complaint/other) using `gpt-4o-mini`, in batched parallel calls (25 comments per call).
+3. Renders a dashboard: a sentiment breakdown chart, comments grouped into themed clusters, the top 5 questions your audience is asking, one AI-drafted suggested reply per cluster with a one-click copy button, and a full browsable table of every analyzed comment with filters, sorting, and pagination.
 
-There is no auto-posting, no OAuth, no database, and no accounts — everything runs per-request, for one video at a time. You read the analysis and copy replies you want to post yourself.
+There is no auto-posting, no OAuth, no database, and no accounts — everything runs per-request, for one video at a time. You read the analysis and copy replies you want to post yourself. The last analysis is kept in `sessionStorage` so a refresh doesn't lose it, but nothing is ever saved server-side.
 
 ## Why it matters
 
@@ -29,17 +29,19 @@ Creators with any real traction get hundreds of comments per video and can't rea
 ```
 app/
   page.tsx                 landing page + URL input + dashboard (single page)
-  api/analyze/route.ts     POST { videoUrl } -> full analysis JSON
+  api/analyze/route.ts     POST { videoUrl, maxComments } -> full analysis JSON
 lib/
   youtube.ts               video ID extraction, comment/metadata fetching, pagination
   classify.ts               batched LLM classification, cluster replies, top questions
   types.ts                  shared TypeScript types
+  format.ts                 relative-time formatting for the comment browser
 components/
-  UrlInput.tsx
+  UrlInput.tsx             URL input + scan depth toggle (Quick/Deep)
   LoadingState.tsx
   SentimentChart.tsx
   TopQuestions.tsx
   ClusterCard.tsx
+  CommentBrowser.tsx       filterable/sortable/paginated table of all analyzed comments
 ```
 
 ## Running locally
@@ -70,7 +72,7 @@ components/
    npm run dev
    ```
 
-4. Open [http://localhost:3000](http://localhost:3000), paste a YouTube video URL (`youtube.com/watch?v=...`, `youtu.be/...`, or `youtube.com/shorts/...`), and click Analyze.
+4. Open [http://localhost:3000](http://localhost:3000), paste a YouTube video URL (`youtube.com/watch?v=...`, `youtu.be/...`, or `youtube.com/shorts/...`), pick Quick scan or Deep scan, and click Analyze.
 
 Both API keys are only ever read server-side inside the `/api/analyze` route handler — they are never sent to or bundled for the client.
 
@@ -84,8 +86,12 @@ Deploys to Vercel with zero configuration beyond environment variables:
 
 ## Cost
 
-Each analysis classifies up to 150 comments in batches of 25 (6 parallel `gpt-4o-mini` calls) plus a handful of short cluster-reply and top-questions calls. At `gpt-4o-mini` pricing this comes out to a fraction of a cent per video analyzed — well under a few cents even on a chatty video.
+Each analysis classifies comments in batches of 25 (6 parallel `gpt-4o-mini` calls for a Quick scan, ~20 for a Deep scan) plus a handful of short cluster-reply and top-questions calls. At `gpt-4o-mini` pricing this comes out to a fraction of a cent per Quick scan and still well under a few cents for a Deep scan.
+
+## Comment ordering
+
+Comments are fetched with `commentThreads.list?order=relevance`, YouTube's own relevance ranking (roughly correlated with engagement — likes, replies, etc.) — **not** strictly newest-first or oldest-first. Quick scan takes the top 150 by that ranking; Deep scan paginates further into it for up to 500. The comment browser lets you re-sort what was fetched by newest, oldest, or most-liked, but it can't retrieve comments outside whatever set relevance ranking already selected.
 
 ## Notes on scope
 
-This is intentionally a single-video, single-request tool: no history, no saved videos, no accounts. If a batch classification call fails twice, those comments are marked as neutral/other rather than failing the whole analysis, so a flaky LLM call never breaks the dashboard.
+This is intentionally a single-video, single-request tool: no history, no saved videos, no accounts. The most recent analysis is cached client-side in `sessionStorage` purely so a refresh doesn't lose it — closing the tab clears it, and nothing is ever written server-side. If a batch classification call fails twice, those comments are marked as neutral/other rather than failing the whole analysis, so a flaky LLM call never breaks the dashboard.
