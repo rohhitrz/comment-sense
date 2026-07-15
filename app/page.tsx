@@ -6,12 +6,13 @@ import LoadingState from "@/components/LoadingState";
 import SentimentChart from "@/components/SentimentChart";
 import TopQuestions from "@/components/TopQuestions";
 import ClusterCard from "@/components/ClusterCard";
-import type { AnalyzeResult } from "@/lib/types";
+import type { AnalyzeResult, ScanDepth } from "@/lib/types";
 
 type Status = "idle" | "loading" | "success" | "error";
 
 export default function Home() {
   const [videoUrl, setVideoUrl] = useState("");
+  const [scanDepth, setScanDepth] = useState<ScanDepth>(150);
   const [status, setStatus] = useState<Status>("idle");
   const [result, setResult] = useState<AnalyzeResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +26,7 @@ export default function Home() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoUrl }),
+        body: JSON.stringify({ videoUrl, maxComments: scanDepth }),
       });
       const data = await res.json();
 
@@ -80,6 +81,8 @@ export default function Home() {
               onChange={setVideoUrl}
               onSubmit={handleAnalyze}
               disabled={status === "loading"}
+              scanDepth={scanDepth}
+              onScanDepthChange={setScanDepth}
             />
           </div>
 
@@ -89,7 +92,7 @@ export default function Home() {
             </div>
           )}
 
-          {status === "loading" && <LoadingState />}
+          {status === "loading" && <LoadingState scanDepth={scanDepth} />}
         </div>
       )}
 

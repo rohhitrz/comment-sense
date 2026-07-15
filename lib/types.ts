@@ -2,6 +2,8 @@ export type Sentiment = "positive" | "neutral" | "negative";
 
 export type Theme = "praise" | "question" | "request" | "complaint" | "other";
 
+export type ScanDepth = 150 | 500;
+
 export interface VideoMeta {
   id: string;
   title: string;

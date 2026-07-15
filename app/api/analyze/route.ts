@@ -20,6 +20,8 @@ const CLUSTER_LABELS: Record<Theme, string> = {
   other: "Other",
 };
 const TOP_COMMENTS_PER_CLUSTER = 5;
+const ALLOWED_MAX_COMMENTS = [150, 500];
+const DEFAULT_MAX_COMMENTS = 150;
 
 function errorStatus(code: YouTubeError["code"]): number {
   switch (code) {
@@ -38,9 +40,13 @@ function errorStatus(code: YouTubeError["code"]): number {
 
 export async function POST(request: Request) {
   let videoUrl: unknown;
+  let maxComments = DEFAULT_MAX_COMMENTS;
   try {
-    const body = (await request.json()) as { videoUrl?: unknown };
+    const body = (await request.json()) as { videoUrl?: unknown; maxComments?: unknown };
     videoUrl = body.videoUrl;
+    if (ALLOWED_MAX_COMMENTS.includes(body.maxComments as number)) {
+      maxComments = body.maxComments as number;
+    }
   } catch {
     return NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400 });
   }
@@ -52,7 +58,7 @@ export async function POST(request: Request) {
   try {
     const videoId = extractVideoId(videoUrl);
     const meta = await fetchVideoMeta(videoId);
-    const comments = await fetchTopComments(videoId);
+    const comments = await fetchTopComments(videoId, maxComments);
 
     const classified = await classifyComments(comments);
     const sentiment = computeSentimentBreakdown(classified);

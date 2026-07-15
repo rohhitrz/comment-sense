@@ -18,7 +18,7 @@ export class YouTubeError extends Error {
 }
 
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
-const MAX_COMMENTS = 150;
+const DEFAULT_MAX_COMMENTS = 150;
 const PAGE_SIZE = 100;
 
 /**
@@ -164,7 +164,10 @@ interface CommentThreadsListResponse {
   nextPageToken?: string;
 }
 
-export async function fetchTopComments(videoId: string): Promise<RawComment[]> {
+export async function fetchTopComments(
+  videoId: string,
+  maxComments: number = DEFAULT_MAX_COMMENTS
+): Promise<RawComment[]> {
   const comments: RawComment[] = [];
   let pageToken: string | undefined;
 
@@ -190,11 +193,11 @@ export async function fetchTopComments(videoId: string): Promise<RawComment[]> {
         text: top.snippet.textDisplay,
         likeCount: top.snippet.likeCount,
       });
-      if (comments.length >= MAX_COMMENTS) break;
+      if (comments.length >= maxComments) break;
     }
 
-    pageToken = comments.length < MAX_COMMENTS ? data.nextPageToken : undefined;
-  } while (pageToken && comments.length < MAX_COMMENTS);
+    pageToken = comments.length < maxComments ? data.nextPageToken : undefined;
+  } while (pageToken && comments.length < maxComments);
 
   return comments;
 }
