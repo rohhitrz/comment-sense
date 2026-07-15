@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import UrlInput from "@/components/UrlInput";
 import LoadingState from "@/components/LoadingState";
 import SentimentChart from "@/components/SentimentChart";
@@ -11,12 +11,38 @@ import type { AnalyzeResult, ScanDepth } from "@/lib/types";
 
 type Status = "idle" | "loading" | "success" | "error";
 
+const SESSION_KEY = "commentsense:lastAnalysis";
+
+interface StoredSession {
+  videoUrl: string;
+  scanDepth: ScanDepth;
+  result: AnalyzeResult;
+}
+
 export default function Home() {
   const [videoUrl, setVideoUrl] = useState("");
   const [scanDepth, setScanDepth] = useState<ScanDepth>(150);
   const [status, setStatus] = useState<Status>("idle");
   const [result, setResult] = useState<AnalyzeResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Hydrating from sessionStorage after mount (not a lazy useState initializer)
+    // to avoid an SSR/client hydration mismatch, since sessionStorage only exists client-side.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    try {
+      const saved = sessionStorage.getItem(SESSION_KEY);
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as StoredSession;
+      setVideoUrl(parsed.videoUrl);
+      setScanDepth(parsed.scanDepth);
+      setResult(parsed.result);
+      setStatus("success");
+    } catch {
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
 
   async function handleAnalyze() {
     if (!videoUrl.trim() || status === "loading") return;
@@ -39,6 +65,10 @@ export default function Home() {
 
       setResult(data as AnalyzeResult);
       setStatus("success");
+      sessionStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify({ videoUrl, scanDepth, result: data } satisfies StoredSession)
+      );
     } catch {
       setError("Couldn't reach the server. Check your connection and try again.");
       setStatus("error");
@@ -50,6 +80,7 @@ export default function Home() {
     setResult(null);
     setError(null);
     setVideoUrl("");
+    sessionStorage.removeItem(SESSION_KEY);
   }
 
   return (
