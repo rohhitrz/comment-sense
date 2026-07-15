@@ -16,6 +16,7 @@ export interface RawComment {
   author: string;
   text: string;
   likeCount: number;
+  publishedAt: string;
 }
 
 export interface ClassifiedComment extends RawComment {
@@ -48,6 +49,7 @@ export interface AnalyzeResult {
   sentiment: SentimentBreakdown;
   clusters: Cluster[];
   topQuestions: string[];
+  comments: ClassifiedComment[];
 }
 
 export interface AnalyzeError {

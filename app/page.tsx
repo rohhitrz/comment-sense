@@ -6,6 +6,7 @@ import LoadingState from "@/components/LoadingState";
 import SentimentChart from "@/components/SentimentChart";
 import TopQuestions from "@/components/TopQuestions";
 import ClusterCard from "@/components/ClusterCard";
+import CommentBrowser from "@/components/CommentBrowser";
 import type { AnalyzeResult, ScanDepth } from "@/lib/types";
 
 type Status = "idle" | "loading" | "success" | "error";
@@ -137,6 +138,11 @@ export default function Home() {
                 <ClusterCard key={cluster.theme} cluster={cluster} />
               ))}
             </div>
+          </section>
+
+          <section className="flex flex-col gap-6">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-faint">All comments</h3>
+            <CommentBrowser comments={result.comments} />
           </section>
         </div>
       )}

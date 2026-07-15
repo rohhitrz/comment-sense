@@ -157,6 +157,7 @@ interface CommentThreadsListResponse {
           authorDisplayName: string;
           textDisplay: string;
           likeCount: number;
+          publishedAt: string;
         };
       };
     };
@@ -192,6 +193,7 @@ export async function fetchTopComments(
         author: top.snippet.authorDisplayName,
         text: top.snippet.textDisplay,
         likeCount: top.snippet.likeCount,
+        publishedAt: top.snippet.publishedAt,
       });
       if (comments.length >= maxComments) break;
     }

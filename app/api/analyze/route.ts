@@ -97,6 +97,7 @@ export async function POST(request: Request) {
       sentiment,
       clusters: clusters.filter((c): c is Cluster => c !== null),
       topQuestions,
+      comments: classified,
     };
 
     return NextResponse.json(result);
