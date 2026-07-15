@@ -5,6 +5,10 @@ import type { ScanDepth } from "@/lib/types";
 
 interface LoadingStateProps {
   scanDepth: ScanDepth;
+  /** Defaults to "single" — omit for the existing single-video loading behavior. */
+  mode?: "single" | "compare";
+  /** Number of videos being processed; only used when mode is "compare". */
+  videoCount?: number;
 }
 
 const STAGES: Record<ScanDepth, { at: number; label: string }[]> = {
@@ -27,14 +31,28 @@ const EXPECTED_DURATION: Record<ScanDepth, string> = {
   500: "30-45 seconds",
 };
 
-export default function LoadingState({ scanDepth }: LoadingStateProps) {
+function compareStages(videoCount: number): { at: number; label: string }[] {
+  return [
+    { at: 0, label: `Analyzing ${videoCount} videos…` },
+    { at: 6000, label: "Classifying comments across all videos…" },
+    { at: 20000, label: "Clustering themes per video…" },
+    { at: 35000, label: "Finding patterns across videos…" },
+  ];
+}
+
+export default function LoadingState({ scanDepth, mode = "single", videoCount }: LoadingStateProps) {
   const [stageIndex, setStageIndex] = useState(0);
-  const stages = STAGES[scanDepth];
+  const stages = mode === "compare" ? compareStages(videoCount ?? 2) : STAGES[scanDepth];
 
   useEffect(() => {
     const timers = stages.slice(1).map((stage, i) => setTimeout(() => setStageIndex(i + 1), stage.at));
     return () => timers.forEach(clearTimeout);
   }, [stages]);
+
+  const subtext =
+    mode === "compare"
+      ? `Analyzing up to ${scanDepth} comments per video across ${videoCount ?? 2} videos — this can take a couple of minutes`
+      : `Analyzing up to ${scanDepth} comments — this usually takes ${EXPECTED_DURATION[scanDepth]}`;
 
   return (
     <div className="flex w-full flex-col items-center gap-6 py-16">
@@ -45,7 +63,7 @@ export default function LoadingState({ scanDepth }: LoadingStateProps) {
       <div className="flex flex-col items-center gap-2 text-center">
         <p className="text-lg font-medium text-foreground">{stages[stageIndex].label}</p>
         <p className="text-sm text-faint">
-          Analyzing up to {scanDepth} comments — this usually takes {EXPECTED_DURATION[scanDepth]}
+          {subtext}
           <span className="pulse-dot ml-0.5">.</span>
           <span className="pulse-dot ml-0.5" style={{ animationDelay: "0.2s" }}>
             .
