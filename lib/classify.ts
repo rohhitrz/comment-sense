@@ -62,13 +62,22 @@ async function classifyBatchOnce(batch: RawComment[]): Promise<ClassifiedComment
       {
         role: "system",
         content:
-          "You are a precise classification engine for YouTube comments. " +
-          "For each comment, determine its sentiment and theme. " +
+          "You are a precise classification engine for YouTube comments on a creator's video. " +
+          "For each comment, judge its sentiment and theme by its OVERALL TONE AND MAIN INTENT — " +
+          "never by an isolated word alone. " +
           `sentiment must be one of: ${SENTIMENTS.join(", ")}. ` +
           `theme must be one of: ${THEMES.join(", ")}. ` +
-          "praise = compliments/appreciation, question = asking something or expressing confusion, " +
-          "request = asking for a future video/feature/topic, complaint = criticism or negative feedback, " +
-          "other = anything that doesn't fit cleanly. " +
+          "praise = mainly a compliment, thanks, or appreciation for the video/creator. A mostly-positive " +
+          "comment that also mentions a small correction, nitpick, or question is still praise, not complaint " +
+          "or question — e.g. \"Great explanation, one small thing though...\" is praise. " +
+          "question = the commenter is mainly asking something or genuinely confused about the content. " +
+          "request = the commenter is mainly asking for a future video, feature, or topic. " +
+          "complaint = the comment's main point is criticism or frustration about THIS video, creator, or " +
+          "platform. Do not classify a comment as a complaint just because it mentions something negative " +
+          "(an error, a hard time, a bad experience elsewhere) inside an otherwise unrelated personal story " +
+          "or a story that isn't really about the video — that's other, not complaint. " +
+          "other = personal anecdotes, unrelated stories, jokes, or anything that doesn't cleanly fit above, " +
+          "even if they mention frustration about something unrelated to the video. " +
           "Respond with strict JSON only, matching this shape: " +
           '{ "results": [ { "id": string, "sentiment": string, "theme": string } ] }. ' +
           "Return exactly one result per input comment, preserving its id.",
